@@ -1,0 +1,32 @@
+/* Script purpose:
+	The scripts below creates a DDL for the csv files under source_erp folder.
+    
+    naming of file ddl_<layer>_<source>
+    Naming of table: <layer>_<source>_<filename> 
+*/
+
+-- Table creation for CUST_AZ12.csv. The script will delete any existing table with the same name, then create a new table.
+DROP TABLE IF EXISTS bronze_erp_cust_az12;
+CREATE TABLE bronze_erp_cust_az12 (
+cid VARCHAR(50),
+bdate DATE,
+gen VARCHAR(50)
+);
+
+
+-- Table creation for LOC_A101.csv. The script will delete any existing table with the same name, then create a new table.
+DROP TABLE IF EXISTS bronze_erp_loc_a101;
+CREATE TABLE bronze_erp_loc_a101 (
+cid VARCHAR(50),
+cntry VARCHAR(50)
+);
+
+
+-- Table creation for PX_CAT_G1V2.csv. The script will delete any existing table with the same name, then create a new table.
+DROP TABLE IF EXISTS bronze_erp_px_cat_g1v2;
+CREATE TABLE bronze_erp_px_cat_g1v2 (
+id VARCHAR(50),
+cat VARCHAR(50),
+subcat VARCHAR(50),
+maintenance VARCHAR(50)
+);
