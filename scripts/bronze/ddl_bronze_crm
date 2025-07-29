@@ -1,5 +1,6 @@
 /* Script purpose:
-	The scripts below creates a DDL for the csv files under source_crm folder.
+	Table creation for Bronze Layer.
+	The scripts below creates a DDL for tables under source_crm folder.
     
     naming of file ddl_<layer>_<source>
     Naming of table: <layer>_<source>_<filename> 
