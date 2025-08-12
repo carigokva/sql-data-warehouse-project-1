@@ -2,7 +2,7 @@
 	Table creation for Bronze Layer.
 	The scripts below creates a DDL for tables under source_erp folder.
     
-    naming of file ddl_<layer>_<source>
+    naming of file <layer>_ddl_<source>
     Naming of table: <layer>_<source>_<filename> 
 */
 
