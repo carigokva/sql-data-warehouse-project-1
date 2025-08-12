@@ -1,7 +1,7 @@
 /* Script purpose:
 	The scripts below load files from the source crm folder into the table created in bronze layer.
     
-    naming of file load_<layer>_<source>
+    naming of file <layer>_load_<source>
    
 */
 
