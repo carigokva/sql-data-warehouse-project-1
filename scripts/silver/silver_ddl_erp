@@ -1,9 +1,14 @@
 /* Script purpose:
-	Table creation for Silver Layer.
-	The scripts below creates a DDL for tables under source_erp folder.
-    
-    naming of file <layer>_ddl_<source>
-    Naming of table: <layer>_<source>_<filename> 
+		Table creation for Silver Layer.
+		The scripts below creates a DDL for tables under source_crm folder.
+        
+   Actions Performed:
+		Deletes existing table under silver layer.
+        Creates new table containing columns based on the requirements.
+		
+   Naming of File/Table:
+		Naming of file <layer>_load_<source>
+		Naming of table: <layer>_<source>_<filename> 
 */
 
 --  Select the schema where the project is stored.
