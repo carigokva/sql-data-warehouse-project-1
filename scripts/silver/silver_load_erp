@@ -1,8 +1,13 @@
 /* Script purpose:
-	Loading cleaned and normalize data in the silver_erp_<tables>
+		This script performs ETL (Extract, Transform, Load) process to populate
+		the 'silver' layer tables from the 'bronze' layer tables.
+   Actions Performed:
+		Truncates silver tables.
+        Inserts transformed and cleansed data from bronze into silver tables.
     
-    naming of file <layer>_load_<source>
-    Naming of table: <layer>_<source>_<filename> 
+   Naming of File/Table:
+		Naming of file <layer>_load_<source>
+		Naming of table: <layer>_<source>_<filename> 
 */
 
 --  Select the schema where the project is stored.
