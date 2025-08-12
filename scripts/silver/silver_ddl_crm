@@ -1,0 +1,52 @@
+/* Script purpose:
+	Table creation for Silver Layer.
+	The scripts below creates a DDL for tables under source_crm folder.
+    
+    naming of file <layer>_ddl_<source>
+    Naming of table: <layer>_<source>_<filename> 
+*/
+
+--  Select the schema where the project is stored.
+	USE project1_datawarehouse;
+
+-- Table creation for cust_info.csv. The script will delete any existing table with the same name, then create a new table.
+DROP TABLE IF EXISTS silver_crm_cust_info;
+CREATE TABLE silver_crm_cust_info (
+cst_id INT,
+cst_key VARCHAR(50),
+cst_firstname VARCHAR(50),
+cst_lastname VARCHAR(50),
+cst_marital_status VARCHAR(50),
+cst_gndr VARCHAR(50),
+cst_create_date DATE,
+dwh_create_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table creation for prd_info.csv. The script will delete any existing table with the same name, then create a new table.
+DROP TABLE IF EXISTS silver_crm_prd_info;
+CREATE TABLE silver_crm_prd_info (
+prd_id INT,
+cat_id VARCHAR(50), -- added cat_id from splitting the prd_key from bronze layer
+prd_key VARCHAR(50),
+prd_nm VARCHAR(50),
+prd_cost INT,
+prd_line VARCHAR(50),
+prd_start_dt DATE,
+prd_end_dt DATE,
+dwh_create_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table creation for prd_info.csv. The script will delete any existing table with the same name, then create a new table.
+DROP TABLE IF EXISTS silver_crm_sales_details;
+CREATE TABLE silver_crm_sales_details (
+sls_ord_num VARCHAR(50),
+sls_prd_key VARCHAR(50),
+sls_cust_id INT,
+sls_order_dt DATE,
+sls_ship_dt DATE,
+sls_due_dt DATE,
+sls_sales DECIMAL(10,2),
+sls_quantity INT,
+sls_price DECIMAL(10,2),
+dwh_create_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
