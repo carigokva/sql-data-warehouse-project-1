@@ -1,0 +1,72 @@
+/* Script purpose:
+	Loading cleaned and normalize data in the silver_erp_<tables>
+    
+    naming of file <layer>_load_<source>
+    Naming of table: <layer>_<source>_<filename> 
+*/
+
+--  Select the schema where the project is stored.
+	USE project1_datawarehouse;
+    
+-- ======================================================================================================
+-- Loading data into silver_erp_cust_az12 table.
+TRUNCATE TABLE silver_erp_cust_az12;
+
+INSERT INTO silver_erp_cust_az12 (
+cid,
+bdate,
+gen
+)
+
+SELECT 
+	CASE
+		WHEN SUBSTRING(TRIM(cid), 1, 3) = 'NAS' THEN SUBSTRING(TRIM(cid), 4, LENGTH(TRIM(cid)) - 3)
+        ELSE TRIM(cid)
+	END as cid,
+    bdate,
+    CASE
+		WHEN TRIM(gen) = 'M' THEN 'Male'
+        WHEN TRIM(gen) = 'F' THEN 'Female'
+        WHEN TRIM(gen) IS NULL THEN 'n/a'
+        ELSE TRIM(gen)
+	END as gen
+FROM bronze_erp_cust_az12;
+
+
+-- ======================================================================================================
+-- Loading data into silver_erp_loc_a101 table.
+TRUNCATE TABLE silver_erp_loc_a101;
+
+INSERT INTO silver_erp_loc_a101 (
+cid,
+cntry
+)
+
+SELECT
+	REPLACE(TRIM(cid), '-', '') as cid,
+    CASE 
+		WHEN TRIM(cntry) = 'US' THEN 'United States'
+        WHEN TRIM(cntry) = 'USA' THEN 'United States'
+        WHEN TRIM(cntry) ='DE' THEN 'Germany'
+        WHEN TRIM(cntry) IS NULL THEN 'n/a'
+        ELSE TRIM(cntry)
+	END as cntry
+FROM bronze_erp_loc_a101;
+
+-- ======================================================================================================
+-- Loading data into silver_erp_px_cat_g1v2 table.
+TRUNCATE TABLE silver_erp_px_cat_g1v2;
+
+INSERT INTO silver_erp_px_cat_g1v2 (
+id,
+cat,
+subcat,
+maintenance
+)
+
+SELECT
+	REPLACE(TRIM(id), '_', '-') as id,
+    TRIM(cat) as cat,
+    TRIM(subcat) as subcat,
+    TRIM(maintenance) as maintenance
+FROM bronze_erp_px_cat_g1v2;
