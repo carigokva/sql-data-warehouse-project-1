@@ -1,0 +1,444 @@
+/* Script purpose:
+	Quality check of tables from bronze_crm to identify issues before loading data into table
+    
+    naming of file <layer>_purpose_<source>
+*/
+
+--  Select the schema where the project is stored.
+	USE project1_datawarehouse;
+    
+
+-- =========================================================================================
+-- bronze_crm_cust_info
+    SELECT * FROM bronze_crm_cust_info;
+-- Identify if there are duplicate issues. (Quality Check)
+SELECT
+	cst_id, COUNT(*)
+FROM bronze_crm_cust_info
+GROUP BY cst_id
+HAVING COUNT(*) > 1;
+
+-- Remove Duplicates on column/s with Primary Key. (Script to resolve issue with QC)
+-- Also remove NULL values.
+/*
+SELECT 
+	*, 
+    ROW_NUMBER() OVER (PARTITION BY cst_id ORDER BY cst_create_date DESC) as rownum -- rows with rownum = 1 are cst_id with latest cst_create_date
+FROM bronze_crm_cust_info;
+*/
+
+SELECT 
+	cst_id,
+    cst_key,
+    cst_firstname,
+    cst_lastname,
+    cst_marital_status,
+    cst_gndr,
+    cst_create_date
+FROM (
+	SELECT 
+		*, 
+		ROW_NUMBER() OVER (PARTITION BY cst_id ORDER BY cst_create_date DESC) as rownum -- rows with rownum = 1 are cst_id with latest cst_create_date
+	FROM bronze_crm_cust_info) AS T1
+WHERE rownum = 1 AND cst_id IS NOT NULL;
+
+
+-- Check for unwanted/trailing spaces on columns with string values. (Quality Check)
+SELECT cst_key
+FROM bronze_crm_cust_info
+WHERE cst_key != TRIM(cst_key);
+
+SELECT cst_firstname
+FROM bronze_crm_cust_info
+WHERE cst_firstname != TRIM(cst_firstname);
+
+SELECT *
+FROM bronze_crm_cust_info
+WHERE cst_lastname != TRIM(cst_lastname);
+
+-- Remove Unwanted Space and Normalize string values. (Script to resolve issue with QC)
+SELECT 
+	cst_id,
+    TRIM(cst_key) AS cst_key,
+    TRIM(cst_firstname) AS cst_firstname,
+    TRIM(cst_lastname) AS cst_lastname,
+    cst_marital_status,
+    cst_gndr,
+    cst_create_date
+FROM (
+	SELECT 
+		*, 
+		ROW_NUMBER() OVER (PARTITION BY cst_id ORDER BY cst_create_date DESC) as rownum -- rows with rownum = 1 are cst_id with latest cst_create_date
+	FROM bronze_crm_cust_info) AS T1
+WHERE rownum = 1 AND cst_id IS NOT NULL;
+
+
+-- Identify columns with blank values and how to resolve them. (Quality Check)
+-- Handle Missing Data. (Script to resolve issue with QC)
+
+
+-- Check the consistency of values in low cardinality columns, normalize values as needed. (Quality Check)
+SELECT DISTINCT cst_marital_status
+FROM bronze_crm_cust_info;
+
+SELECT DISTINCT cst_gndr
+FROM bronze_crm_cust_info;
+
+
+-- (Script to resolve issue with QC)
+SELECT cst_marital_status,
+	CASE
+		WHEN UPPER(TRIM(cst_marital_status)) = 'M' THEN 'Married'
+        WHEN UPPER(TRIM(cst_marital_status)) = 'S' THEN 'Single'
+        ELSE 'n/a'
+	END AS cst_marital_status,
+    cst_gndr,
+    CASE
+		WHEN UPPER(TRIM(cst_gndr)) = 'M' THEN 'Male'
+        WHEN UPPER(TRIM(cst_gndr)) = 'F' THEN 'Female'
+        ELSE 'n/a'
+	END AS cst_gndr
+FROM bronze_crm_cust_info;
+
+-- Identify problems with date columns
+SELECT cst_create_date
+FROM bronze_crm_cust_info;
+
+
+-- =========================================================================================
+-- bronze_crm_prd_info
+SELECT * FROM bronze_crm_prd_info;
+
+-- Identify if there are duplicate issues. (Quality Check)
+SELECT
+	prd_id,
+    COUNT(*)
+FROM bronze_crm_prd_info
+GROUP BY prd_id
+HAVING COUNT(*) > 1 OR prd_id IS NULL;
+
+-- Remove Duplicates on column/s with Primary Key. (Script to resolve issue with QC)
+-- Also remove NULL values.
+SELECT
+	prd_id,
+	prd_key,
+    prd_nm,
+    prd_cost,
+    prd_line,
+    prd_start_dt,
+    prd_end_dt
+FROM (
+SELECT *, ROW_NUMBER() OVER (PARTITION BY prd_id ORDER BY prd_start_dt DESC) AS rownum
+FROM bronze_crm_prd_info) as T1
+WHERE rownum = 1 AND prd_id IS NOT NULL;
+
+-- Check for unwanted/trailing spaces on columns with string values. (Quality Check)
+SELECT prd_key
+FROM bronze_crm_prd_info
+WHERE prd_key != TRIM(prd_key);
+
+SELECT prd_nm
+FROM bronze_crm_prd_info
+WHERE prd_nm != TRIM(prd_nm);
+
+-- Remove Unwanted Space and Normalize string values. (Script to resolve issue with QC)
+-- prd_key must be split into two. characters before and after 2nd delimiter
+/*SELECT
+	prd_key,
+    SUBSTRING_INDEX(prd_key, '-', 2) AS cat_id,
+    SUBSTRING_INDEX(prd_key, '-', -3) as prd_key
+FROM bronze_crm_prd_info;
+*/
+SELECT
+	prd_id,
+    prd_key,
+    SUBSTRING_INDEX(TRIM(prd_key), '-', 2) as cat_id,
+	SUBSTRING(prd_key, LENGTH(SUBSTRING_INDEX(TRIM(prd_key), '-', 2)) + 2, LENGTH(prd_key)) as prd_key,
+    TRIM(prd_nm) as prd_nm,
+    prd_cost,
+    prd_line,
+    prd_start_dt,
+    prd_end_dt
+FROM (
+SELECT *, ROW_NUMBER() OVER (PARTITION BY prd_id ORDER BY prd_start_dt DESC) AS rownum
+FROM bronze_crm_prd_info) as T1
+WHERE rownum = 1 AND prd_id IS NOT NULL;
+
+-- check for NULLs or negative number on prd_cost column (Quality Check)
+-- check for outlier prd_cost values
+SELECT prd_cost
+FROM bronze_crm_prd_info
+WHERE prd_cost < 0 OR prd_cost IS NULL;
+
+SELECT MAX(prd_cost), MIN(prd_cost)
+FROM bronze_crm_prd_info;
+
+-- Make the necessary transformation on problematic values
+SELECT
+	prd_cost,
+    COALESCE(prd_cost, 0)
+FROM bronze_crm_prd_info;
+
+-- Check the consistency of values in low cardinality columns, normalize values as needed. (Quality Check)
+SELECT DISTINCT prd_line
+FROM bronze_crm_prd_info;
+
+-- Make the necessary transformation on low cardinality columns.
+SELECT
+	prd_line,
+    CASE TRIM(UPPER(prd_line))
+		WHEN 'R' THEN 'Road'
+        WHEN 'S' THEN 'other Sales'
+        WHEN 'M' THEN 'Mountain'
+        WHEN 'T' THEN 'Touring'
+        ELSE 'n/a'
+	END as prd_line
+FROM bronze_crm_prd_info;
+
+-- Identify problems with date columns (Quality Check)
+SELECT * FROM bronze_crm_prd_info;
+
+SELECT * FROM bronze_crm_prd_info
+WHERE prd_start_dt > prd_end_dt; -- there are 200 rows that contains start date recent than end date.
+
+-- Make the necessary transformation to fix the problem
+-- Using start date as the basis of end date on rows with prd_start_dt > prd_end_dt. Partition prd_key
+-- If prd_start_dt < prd_end_dt, retain prd_end_dt value
+
+SELECT
+	*,
+    DATE_SUB(LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt), INTERVAL 1 DAY),
+    CASE
+		WHEN prd_start_dt > prd_end_dt THEN DATE_SUB(LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt), INTERVAL 1 Day)
+        ELSE prd_end_dt
+	END as prd_end_dt_new
+FROM bronze_crm_prd_info;
+
+
+-- =========================================================================================
+-- bronze_crm_sales_details
+SELECT * FROM bronze_crm_sales_details;
+
+-- sls_ord_num
+-- Identify if there are duplicate issues. (Quality Check)
+-- Identify if there are unwanted spaces. (QC)
+-- Identify if there are blank values. (QC)
+SELECT sls_ord_num, COUNT(*)
+FROM bronze_crm_sales_details
+GROUP BY sls_ord_num
+HAVING COUNT(*) > 1;
+
+SELECT * FROM bronze_crm_sales_details
+WHERE sls_ord_num = 'SO51180';
+
+SELECT *
+FROM bronze_crm_sales_details
+WHERE sls_ord_num != TRIM(sls_ord_num);
+
+SELECT *
+FROM bronze_crm_sales_details
+WHERE TRIM(sls_ord_num) = '';
+
+
+SELECT *
+FROM bronze_crm_sales_details
+WHERE sls_prd_key != TRIM(sls_prd_key);
+
+-- NOTE: There are no unique order #. Each order number can be repeated. (QC)
+--       Repeating order # contains different product. (QC)
+--       Each order # can have multiple products.(QC)
+--       order_num and product_key pair are UNIQUE. Cannot be repeated.(QC)
+SELECT sls_ord_num, sls_prd_key, COUNT(*)
+FROM
+(SELECT TRIM(sls_ord_num) as sls_ord_num, TRIM(sls_prd_key) as sls_prd_key
+FROM bronze_crm_sales_details) AS t1
+GROUP BY sls_ord_num, sls_prd_key
+HAVING COUNT(*) > 1 OR sls_ord_num IS NULL OR sls_prd_key IS NULL;
+
+-- Remove Duplicates on column/s with Primary Key. (Script to resolve issue with QC)
+-- Remove unwanted spaces.
+-- Remove NULL or Blank values
+
+SELECT
+	TRIM(sls_ord_num) as sls_ord_num,
+    TRIM(sls_prd_key) as sls_prd_key,
+    sls_cust_id,
+    sls_order_dt,
+    sls_ship_dt,
+    sls_due_dt,
+    sls_sales,
+    Sls_quantity,
+    sls_price
+FROM bronze_crm_sales_details
+WHERE sls_ord_num IS NOT NULL AND TRIM(sls_ord_num) != '' AND sls_prd_key IS NOT NULL;
+
+-- Check for unwanted/trailing spaces on columns with string values. (Quality Check)
+-- Remove Unwanted Space and Normalize string values. (Script to resolve issue with QC)
+
+-- identify potential problem with prd_key and cust_id column (Quality Check)
+-- inspect if all sls_cust_id IN (SELECT cst_id FROM silver_crm_cust_info)
+SELECT * FROM bronze_crm_sales_details
+WHERE sls_cust_id NOT IN (SELECT cst_id FROM silver_crm_cust_info);
+
+-- inspect if all sls_prd_key IN (SELECT cst_id FROM silver_crm_prd_info)
+SELECT * FROM bronze_crm_sales_details
+WHERE sls_prd_key NOT IN (SELECT prd_key FROM silver_crm_prd_info);
+
+-- inspect if all sls_cst_id IN (SELECT cst_id FROM silver_crm_prd_info)
+SELECT * FROM bronze_crm_sales_details
+WHERE sls_cust_id NOT IN (SELECT cst_id FROM silver_crm_cust_info);
+
+-- Make the necessary transformation to fix the problem
+
+
+-- Identify problems with date columns (Quality Check)
+-- Order Date < Ship Date and Order Date < Due Date (Quality Check)
+
+-- date columns that have invalid values will have NULL values when converted to date format/ date type.
+SELECT * FROM bronze_crm_sales_details;
+SELECT
+    STR_TO_DATE(sls_order_dt, '%Y%m%d') as sls_order_dt,
+    STR_TO_DATE(sls_ship_dt, '%Y%m%d') as sls_ship_dt,
+    STR_TO_DATE(sls_due_dt, '%Y%m%d') as sls_due_dt
+FROM bronze_crm_sales_details
+WHERE 
+	STR_TO_DATE(sls_order_dt, '%Y%m%d') > STR_TO_DATE(sls_ship_dt, '%Y%m%d') OR
+    STR_TO_DATE(sls_order_dt, '%Y%m%d') IS NULL OR
+    STR_TO_DATE(sls_order_dt, '%Y%m%d') <= 0 OR
+    STR_TO_DATE(sls_ship_dt, '%Y%m%d') IS NULL;
+-- NOTE: There are NULL order dates. 
+SELECT
+    AVG(DATEDIFF(STR_TO_DATE(sls_ship_dt, '%Y%m%d'),
+    STR_TO_DATE(sls_order_dt, '%Y%m%d')))
+FROM bronze_crm_sales_details
+WHERE 
+	STR_TO_DATE(sls_order_dt, '%Y%m%d') < STR_TO_DATE(sls_ship_dt, '%Y%m%d')
+    AND STR_TO_DATE(sls_order_dt, '%Y%m%d') IS NOT NULL AND STR_TO_DATE(sls_ship_dt, '%Y%m%d') IS NOT NULL;
+-- The average interval between order date and ship date is 7 days.
+-- For order date with NULL values, we can get the values with ship date - 7 days using DATE_SUB()
+
+-- This QC is useful if the INT date values are not converted to Date Type
+SELECT sls_order_dt FROM bronze_crm_sales_details
+WHERE sls_order_dt <= 0;
+
+SELECT sls_order_dt FROM bronze_crm_sales_details
+WHERE LENGTH(sls_order_dt) != 8;
+
+SELECT sls_order_dt FROM bronze_crm_sales_details
+WHERE sls_order_dt IS NULL;
+
+SELECT DISTINCT sls_order_dt
+FROM bronze_crm_sales_details
+ORDER BY sls_order_dt ASC;
+
+-- Make the necessary transformation to fix the problem
+-- Convert int columns containing dates into date type.
+-- Fill NULL values of order date
+SELECT
+	TRIM(sls_ord_num) as sls_ord_num,
+    TRIM(sls_prd_key) as sls_prd_key,
+    sls_cust_id,
+    CASE
+		WHEN sls_order_dt IS NULL THEN DATE_SUB(STR_TO_DATE(sls_ship_dt, '%Y%m%d'), INTERVAL 7 DAY)
+        ELSE STR_TO_DATE(sls_order_dt, '%Y%m%d')
+	END as sls_order_dt,
+    STR_TO_DATE(sls_ship_dt, '%Y%m%d') as sls_ship_dt,
+    STR_TO_DATE(sls_due_dt, '%Y%m%d') as sls_due_dt,
+    sls_sales,
+    sls_quantity,
+    sls_price
+FROM bronze_crm_sales_details;
+
+
+-- check for NULLs, zero, and negative number on sales, quantity, and price columns (Quality Check)
+-- ( sls_price * sls_quantity ) = sls_sales
+
+SELECT *
+FROM bronze_crm_sales_details
+WHERE 
+	sls_sales != sls_quantity * sls_price  OR
+    sls_sales IS NULL OR
+    sls_sales <= 0;
+    
+SELECT *
+FROM bronze_crm_sales_details
+WHERE 
+	sls_quantity IS NULL OR
+    sls_quantity <= 0;
+    
+SELECT *
+FROM bronze_crm_sales_details
+WHERE 
+	sls_price IS NULL OR
+    sls_price <= 0;
+
+-- If sales is negative, zero, null, or sls_sales != sls_quantity * sls_price, then derive it using price and quantity
+-- If price is zero or null, derive it using sales and quantity
+-- If price is negative, convert it to positive value
+SELECT
+sls_sales as old_sls_sales,
+sls_price as old_sls_price,
+sls_quantity,
+CASE
+	WHEN sls_sales IS NULL OR sls_sales <= 0 OR sls_sales != ABS(sls_quantity * sls_price) THEN ABS(sls_quantity * sls_price)
+    ELSE sls_sales
+END as sls_sales,
+
+CASE
+	WHEN sls_price IS NULL or sls_price = 0 THEN CAST(ABS(sls_sales / sls_quantity) AS SIGNED)
+    WHEN sls_price < 0 THEN ABS(sls_price)
+    ELSE sls_price
+END as sls_price
+
+
+FROM bronze_crm_sales_details
+WHERE 
+	sls_sales != sls_quantity * sls_price  OR
+    sls_sales IS NULL OR
+    sls_sales <= 0 OR
+    sls_price IS NULL OR
+    sls_price <= 0;
+
+-- final script that will added to the load table
+-- sales and price are converted to decimal type because they are currency
+SELECT
+	TRIM(sls_ord_num) as sls_ord_num,
+    TRIM(sls_prd_key) as sls_prd_key,
+    sls_cust_id,
+    CASE
+		WHEN STR_TO_DATE(sls_order_dt, '%Y%m%d') IS NULL THEN DATE_SUB(STR_TO_DATE(sls_ship_dt, '%Y%m%d'), INTERVAL 7 DAY)
+        ELSE STR_TO_DATE(sls_order_dt, '%Y%m%d')
+	END as sls_order_dt,
+    STR_TO_DATE(sls_ship_dt, '%Y%m%d') as sls_ship_dt,
+    STR_TO_DATE(sls_due_dt, '%Y%m%d') as sls_due_dt,
+    
+    CASE
+		WHEN sls_sales IS NULL OR sls_sales <= 0 OR sls_sales != ABS(sls_quantity * sls_price) THEN CAST(ABS(sls_quantity * sls_price) AS DECIMAL(10,2))
+		ELSE CAST(sls_sales AS DECIMAL(10,2))
+	END as sls_sales,
+    sls_quantity,
+    CASE
+		WHEN sls_price IS NULL or sls_price = 0 THEN CAST(ABS(sls_sales / sls_quantity) AS DECIMAL(10,2))
+		WHEN sls_price < 0 THEN CAST(ABS(sls_price) AS DECIMAL(10,2))
+		ELSE CAST(sls_price AS DECIMAL(10,2))
+	END as sls_price
+FROM bronze_crm_sales_details;
+-- =========================================================================================
+-- Identify if there are duplicate issues. (Quality Check)
+-- Remove Duplicates on column/s with Primary Key. (Script to resolve issue with QC)
+-- Also remove NULL values.
+
+-- Check for unwanted/trailing spaces on columns with string values. (Quality Check)
+-- Remove Unwanted Space and Normalize string values. (Script to resolve issue with QC)
+
+-- identify potential problem with cust_id column (Quality Check)
+-- inspect if all sls_cust_id IN (SELECT cst_id FROM silver_crm_cust_info)
+
+-- Identify problems with date columns (Quality Check)
+-- Order Date < Ship Date and Order Date < Due Date
+-- Make the necessary transformation to fix the problem
+
+-- check for NULLs or negative number on sales, quantity, and price columns (Quality Check)
+-- ( sls_sales * sls_quantity ) = sls_price
+-- check for outlier values
+
