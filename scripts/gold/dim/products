@@ -19,9 +19,10 @@ DROP VIEW gold_dim_products;
 
 CREATE VIEW gold_dim_products AS
 SELECT 
+	ROW_NUMBER() OVER (ORDER BY pd.prd_start_dt ASC, pd.prd_id ASC) as product_key,
 	pd.prd_id as product_id,
     pd.cat_id as category_id,
-    pd.prd_key as product_key,
+    pd.prd_key as product_number,
     pd.prd_nm as product_name,
     cat.cat as category,
     cat.subcat as subcategory,
@@ -32,8 +33,8 @@ SELECT
 FROM silver_crm_prd_info pd
 LEFT JOIN silver_erp_px_cat_g1v2 cat
 	ON pd.cat_id = cat.id
-WHERE pd.prd_end_dt IS NULL -- filters out all historical data
-ORDER BY product_id;
+WHERE pd.prd_end_dt IS NULL; -- filters out all historical data
+
 
 
 -- script to identify duplicate product_id
