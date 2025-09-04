@@ -1,0 +1,45 @@
+/* Script purpose:
+		This script creates a view showing product dimension table
+   Actions Performed:
+		Join tables containing product_information: crm_prd_info (master table), and erp_px_cat_g1v2
+        Rename columns into meaningful names.
+        Sort the columns (left to right) into logical groups to improve readability.
+        Create a view named gold_dim_customers -- 'dim' for dimension table / 'fact' for fact table.
+    
+   Naming of File/Table:
+		Naming of file <layer>_<fact or dim>_<business object>
+		Naming of view: <layer>_<fact or dim>_<business object>
+        
+   Note:
+		This script will an existing gold_dim_products view if there is any.
+*/
+USE project1_datawarehouse;
+
+DROP VIEW gold_dim_products;
+
+CREATE VIEW gold_dim_products AS
+SELECT 
+	pd.prd_id as product_id,
+    pd.cat_id as category_id,
+    pd.prd_key as product_key,
+    pd.prd_nm as product_name,
+    cat.cat as category,
+    cat.subcat as subcategory,
+    cat.maintenance as maintenance,
+    pd.prd_cost as product_cost,
+    pd.prd_line as product_line,
+    pd.prd_start_dt as start_date
+FROM silver_crm_prd_info pd
+LEFT JOIN silver_erp_px_cat_g1v2 cat
+	ON pd.cat_id = cat.id
+WHERE pd.prd_end_dt IS NULL -- filters out all historical data
+ORDER BY product_id;
+
+
+-- script to identify duplicate product_id
+/*
+SELECT product_id, COUNT(*)
+FROM gold_dim_products
+GROUP BY product_id
+HAVING COUNT(*) > 1;
+*/
