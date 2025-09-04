@@ -1,0 +1,40 @@
+/* Script purpose:
+		This script creates a view showing customer dimension table
+   Actions Performed:
+		Join tables containing customer information: crm_cust_info (master table), erp_cust_az12, and erp_loc_a101.
+        Use gender information on erp_cust_az12 when crm_cust_info contains 'n/a'.
+        Add a new column using ROW_NUMBER() that will serve as customer_key.
+        Rename columns into meaningful names.
+        Sort the columns (left to right) into logical groups to improve readability.
+        Create a view named gold_dim_customers -- 'dim' for dimension table / 'fact' for fact table.
+    
+   Naming of File/Table:
+		Naming of file <layer>_<fact or dim>_<business object>
+		Naming of view: <layer>_<fact or dim>_<business object>
+        
+   Note:
+		This script will an existing gold_dim_customers view if there is any.
+*/
+USE project1_datawarehouse;
+
+DROP VIEW gold_dim_customers;
+
+CREATE VIEW gold_dim_customers AS
+SELECT 
+	ROW_NUMBER() OVER (ORDER BY ci.cst_id) as customer_key,
+    ci.cst_id as customer_id,
+    ci.cst_key as customer_number,
+    ci.cst_firstname as first_name,
+    ci.cst_lastname as last_name,
+    ci.cst_marital_status as marital_status,
+    CASE
+		WHEN ci.cst_gndr != 'n/a' THEN ci.cst_gndr
+        ELSE ca.gen
+	END as gender,
+    ca.bdate as birthdate,
+    la.cntry as country
+FROM silver_crm_cust_info ci
+LEFT JOIN silver_erp_cust_az12 ca
+	ON ci.cst_key = ca.cid
+LEFT JOIN silver_erp_loc_a101 la
+	ON ci.cst_key = la.cid;
