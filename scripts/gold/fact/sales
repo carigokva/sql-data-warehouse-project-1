@@ -1,0 +1,44 @@
+/* Script purpose:
+		This script creates a view showing sales table
+   Actions Performed:
+		Join tables containing sales and order information
+        Rename columns into meaningful names.
+        Sort the columns (left to right) into logical groups to improve readability.
+        Create a view named gold_fact_sales -- 'dim' for dimension table / 'fact' for fact table.
+    
+   Naming of File/Table:
+		Naming of file <layer>_<fact or dim>_<business object>
+		Naming of view: <layer>_<fact or dim>_<business object>
+        
+   Note:
+		This script will an existing gold_dim_products view if there is any.
+*/
+USE project1_datawarehouse;
+
+DROP VIEW gold_fact_sales;
+
+CREATE VIEW gold_fact_sales AS
+SELECT
+	sls_ord_num as order_number,
+    sls_prd_key as product_key,
+    sls_cust_id as customer_id,
+    sls_order_dt as order_date,
+    sls_ship_dt as ship_date,
+    sls_due_dt as due_date,
+    sls_price as price,
+    sls_quantity as quantity,
+    sls_sales as sales
+FROM silver_crm_sales_details
+ORDER BY order_date;
+
+
+-- script to identify same order_number with different order_date
+/*
+SELECT 
+	t1.order_number, t1.product_key, t1.order_date
+FROM gold_fact_sales as t1
+INNER JOIN gold_fact_sales as t2
+ON t1.order_number = t2.order_number
+	AND t1.product_key = t2.product_key
+	AND t1.order_date <> t2.order_date;
+*/
